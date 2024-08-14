@@ -134,7 +134,11 @@ class MainActivityViewModel(
     @OptIn(ExperimentalStdlibApi::class)
     private val callback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
-            addLog("onConnectionStateChange: status=$status, newState=$newState")
+            var log = "onConnectionStateChange: "
+            log += "device=${device?.address}, "
+            log += "status=$status, "
+            log += "newState=$newState"
+            addLog(log)
         }
 
         override fun onCharacteristicWriteRequest(
@@ -146,7 +150,12 @@ class MainActivityViewModel(
             offset: Int,
             value: ByteArray?
         ) {
-            addLog("onCharacteristicWriteRequest: char=${characteristic?.uuid}, value=${value?.toHexString()}")
+            var log = "onCharacteristicWriteRequest: "
+            log += "device=${device?.address}, "
+            log += "requestId=${requestId}, "
+            log += "characteristic=${characteristic?.uuid}, "
+            log += "value=${value?.toHexString()}"
+            addLog(log)
         }
     }
     private val advertiserCallback = object : AdvertiseCallback() {
