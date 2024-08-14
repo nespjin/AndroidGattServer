@@ -37,9 +37,11 @@ class MainActivityViewModel(
 ) : ViewModel() {
 
     private val bluetoothManager by lazy { applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager }
+    private val advertiser by lazy { bluetoothAdapter.bluetoothLeAdvertiser }
     private val bluetoothAdapter by lazy { bluetoothManager.adapter }
 
     private var gattServer: BluetoothGattServer? = null
+    private var isAdverting = false;
 
     private val _uiState = MutableStateFlow(MainActivityUiState())
     val state: StateFlow<MainActivityUiState> = _uiState
@@ -65,24 +67,28 @@ class MainActivityViewModel(
     fun startServer() {
         Log.d(TAG, "startServer: ${bluetoothAdapter.address}")
         clearLog()
+
+        val serviceUUID = _uiState.value.serviceUUID
+        val writeableCharUUID = _uiState.value.writeableCharUUID
+        val readableCharUUID = _uiState.value.readableCharUUID
+
         val service = BluetoothGattService(
-            UUID.fromString(SERVICE_UUID),
+            UUID.fromString(serviceUUID),
             BluetoothGattService.SERVICE_TYPE_PRIMARY
         )
         val writeableChar = BluetoothGattCharacteristic(
-            UUID.fromString(WRITEABLE_CHAR_UUID),
+            UUID.fromString(writeableCharUUID),
             BluetoothGattCharacteristic.PROPERTY_WRITE,
             BluetoothGattCharacteristic.PERMISSION_WRITE
         )
         val readableChar = BluetoothGattCharacteristic(
-            UUID.fromString(READABLE_CHAR_UUID),
+            UUID.fromString(readableCharUUID),
             BluetoothGattCharacteristic.PROPERTY_READ,
             BluetoothGattCharacteristic.PERMISSION_READ
         )
 
         service.addCharacteristic(writeableChar)
         service.addCharacteristic(readableChar)
-
 
         try {
             this.gattServer?.close()
@@ -93,14 +99,24 @@ class MainActivityViewModel(
         gattServer.addService(service)
         this.gattServer = gattServer
 
-        bluetoothAdapter.name = _uiState.value.bleName
-        val advertiser = bluetoothAdapter.bluetoothLeAdvertiser
+        val bluetoothName = _uiState.value.bleName
+        bluetoothAdapter.name = bluetoothName
 
-        try {
+        Log.d(TAG, "startServer: BluetoothAdapterName=${bluetoothName}")
+        Log.d(TAG, "startServer:  bluetoothAdapter.name=${bluetoothAdapter.name}")
+        Log.d(TAG, "startServer: Service UUID=${serviceUUID}")
+        Log.d(TAG, "startServer: Writeable CHAR UUID=${writeableCharUUID}")
+        Log.d(TAG, "startServer: Readable CHAR UUID=${readableCharUUID}")
+
+        if (isAdverting) {
             advertiser.stopAdvertising(advertiserCallback)
-        } catch (_: Exception) {
+            isAdverting = false
         }
+        adverting()
+    }
 
+    @SuppressLint("MissingPermission")
+    private fun adverting() {
         val settings = AdvertiseSettings.Builder()
             .setConnectable(true)
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
@@ -144,6 +160,7 @@ class MainActivityViewModel(
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
             Log.d(TAG, "onStartSuccess: Advertising")
             addLog("Advertising Success")
+            isAdverting = true
             super.onStartSuccess(settingsInEffect)
         }
     }
