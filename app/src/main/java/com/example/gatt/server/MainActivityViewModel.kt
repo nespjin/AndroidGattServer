@@ -22,13 +22,13 @@ import java.util.UUID
 
 private const val SERVICE_UUID = "0000b81d-0000-1000-8000-00805f9b34fb"
 private const val WRITEABLE_CHAR_UUID = "7db3e235-3608-41f3-a03c-955fcbd2ea4b"
-private const val READABLE_CHAR_UUID = "36d4dc5c-814b-4097-a5a6-b93b39085928"
+private const val NOTIFY_CHAR_UUID = "36d4dc5c-814b-4097-a5a6-b93b39085928"
 
 data class MainActivityUiState(
     val log: String = "",
     val serviceUUID: String = SERVICE_UUID,
     val writeableCharUUID: String = WRITEABLE_CHAR_UUID,
-    val readableCharUUID: String = READABLE_CHAR_UUID,
+    val notifyCharUUID: String = NOTIFY_CHAR_UUID,
     val bleName: String = "WR-Sample"
 )
 
@@ -41,7 +41,10 @@ class MainActivityViewModel(
     private val bluetoothAdapter by lazy { bluetoothManager.adapter }
 
     private var gattServer: BluetoothGattServer? = null
-    private var isAdverting = false;
+    private var isAdverting = false
+
+    private var writeableChar: BluetoothGattCharacteristic? = null
+    private var notifyChar: BluetoothGattCharacteristic? = null
 
     private val _uiState = MutableStateFlow(MainActivityUiState())
     val state: StateFlow<MainActivityUiState> = _uiState
@@ -61,7 +64,7 @@ class MainActivityViewModel(
 
     fun setWriteableCharUUID(uuid: String) = _uiState.update { it.copy(writeableCharUUID = uuid) }
 
-    fun setReadableCharUUID(uuid: String) = _uiState.update { it.copy(readableCharUUID = uuid) }
+    fun setNotifyCharUUID(uuid: String) = _uiState.update { it.copy(notifyCharUUID = uuid) }
 
     @SuppressLint("MissingPermission")
     fun startServer() {
@@ -70,25 +73,25 @@ class MainActivityViewModel(
 
         val serviceUUID = _uiState.value.serviceUUID
         val writeableCharUUID = _uiState.value.writeableCharUUID
-        val readableCharUUID = _uiState.value.readableCharUUID
+        val notifyCharUUID = _uiState.value.notifyCharUUID
 
         val service = BluetoothGattService(
             UUID.fromString(serviceUUID),
             BluetoothGattService.SERVICE_TYPE_PRIMARY
         )
-        val writeableChar = BluetoothGattCharacteristic(
+        writeableChar = BluetoothGattCharacteristic(
             UUID.fromString(writeableCharUUID),
             BluetoothGattCharacteristic.PROPERTY_WRITE,
-            BluetoothGattCharacteristic.PERMISSION_WRITE
+            BluetoothGattCharacteristic.PERMISSION_WRITE or BluetoothGattCharacteristic.PERMISSION_READ
         )
-        val readableChar = BluetoothGattCharacteristic(
-            UUID.fromString(readableCharUUID),
-            BluetoothGattCharacteristic.PROPERTY_READ,
-            BluetoothGattCharacteristic.PERMISSION_READ
+        notifyChar = BluetoothGattCharacteristic(
+            UUID.fromString(notifyCharUUID),
+            BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+            BluetoothGattCharacteristic.PERMISSION_WRITE or BluetoothGattCharacteristic.PERMISSION_READ
         )
 
         service.addCharacteristic(writeableChar)
-        service.addCharacteristic(readableChar)
+        service.addCharacteristic(notifyChar)
 
         try {
             this.gattServer?.close()
@@ -103,10 +106,10 @@ class MainActivityViewModel(
         bluetoothAdapter.name = bluetoothName
 
         Log.d(TAG, "startServer: BluetoothAdapterName=${bluetoothName}")
-        Log.d(TAG, "startServer:  bluetoothAdapter.name=${bluetoothAdapter.name}")
+        Log.d(TAG, "startServer: bluetoothAdapter.name=${bluetoothAdapter.name}")
         Log.d(TAG, "startServer: Service UUID=${serviceUUID}")
         Log.d(TAG, "startServer: Writeable CHAR UUID=${writeableCharUUID}")
-        Log.d(TAG, "startServer: Readable CHAR UUID=${readableCharUUID}")
+        Log.d(TAG, "startServer: Notify CHAR UUID=${notifyCharUUID}")
 
         if (isAdverting) {
             advertiser.stopAdvertising(advertiserCallback)
@@ -156,7 +159,7 @@ class MainActivityViewModel(
             log += "characteristic=${characteristic?.uuid}, "
             log += "value=${value?.toHexString()}"
             addLog(log)
-            characteristic?.value = value
+            notifyChar?.value = value
         }
     }
     private val advertiserCallback = object : AdvertiseCallback() {
