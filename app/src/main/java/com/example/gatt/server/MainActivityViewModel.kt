@@ -156,6 +156,7 @@ class MainActivityViewModel(
             log += "characteristic=${characteristic?.uuid}, "
             log += "value=${value?.toHexString()}"
             addLog(log)
+            characteristic?.value = value
         }
     }
     private val advertiserCallback = object : AdvertiseCallback() {
